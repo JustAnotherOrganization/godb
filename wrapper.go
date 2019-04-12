@@ -1,6 +1,6 @@
 package godb
 
-// Copyright 2015 Just Another Organization
+// Copyright 2019 Just Another Organization
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
