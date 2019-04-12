@@ -83,22 +83,21 @@ for wrapper.Next() {
 ## Transactions
 This one is still being refined but...
 ``` golang
-	if err = wrapper.Begin(); err != nil {
-		return
-	}
-    // You could probably handle this a lot better though.
-	defer func() {
-		if err != nil {
+if err = wrapper.Begin(); err != nil {
+	return
+}
+// You could probably handle this a lot better though.
+defer func() {
+	if err != nil {
+		if err = wrapper.Revert(); err != nil {
+               panic(err)
+           }
+	} else {
+		if err = wrapper.Commit(); err != nil {
 			if err = wrapper.Revert(); err != nil {
-                panic(err)
-            }
-		} else {
-			if err = wrapper.Commit(); err != nil {
-				if err = wrapper.Revert(); err != nil {
-                    panic(err)
-                }
-			}
+                   panic(err)
+               }
 		}
-    }()
-    
+    }
+}()
 ```
