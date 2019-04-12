@@ -88,16 +88,16 @@ if err = wrapper.Begin(); err != nil {
 }
 // You could probably handle this a lot better though.
 defer func() {
-	if err != nil {
-		if err = wrapper.Revert(); err != nil {
-               panic(err)
-           }
-	} else {
-		if err = wrapper.Commit(); err != nil {
-			if err = wrapper.Revert(); err != nil {
-                   panic(err)
-               }
-		}
+    if err != nil {
+        if err = wrapper.Revert(); err != nil {
+            panic(err)
+        }
+    } else {
+        if err = wrapper.Commit(); err != nil {
+            if err = wrapper.Revert(); err != nil {
+                panic(err)
+            }
+        }
     }
 }()
 ```
