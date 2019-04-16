@@ -113,18 +113,31 @@ func (wrapper *Wrapper) Execute(statementString string, params ...interface{}) (
 		return 0, 0, err
 	}
 
-	lID, err := results.LastInsertId()
-	if err != nil {
-		fmt.Printf("Failed to get last inserted id\nError: %v\nStatement: %v\nValues: %v\n", err, statementString, params)
+	var lID, rwA int64
+	if err = func() error {
+		defer func() {
+			// Its insane that lastInsertedID can panic....
+			if err := recover(); err != nil {
+				return
+			}
+		}()
+
+		rwA, err = results.RowsAffected()
+		if err != nil {
+			fmt.Printf("Failed to get rows affected\nError: %v\nStatement: %v\nValues: %v\n", err, statementString, params)
+			return err
+		}
+
+		lID, err = results.LastInsertId()
+		if err != nil {
+			fmt.Printf("Failed to get last inserted id\nError: %v\nStatement: %v\nValues: %v\n", err, statementString, params)
+			return err
+		}
+
+		return nil
+	}(); err != nil {
 		return 0, 0, err
 	}
-
-	rwA, err := results.RowsAffected()
-	if err != nil {
-		fmt.Printf("Failed to get rows affected\nError: %v\nStatement: %v\nValues: %v\n", err, statementString, params)
-		return 0, 0, err
-	}
-
 	return lID, rwA, nil
 }
 
