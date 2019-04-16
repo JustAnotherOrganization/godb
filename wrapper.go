@@ -47,6 +47,7 @@ type Wrapper struct {
 	CurrentScan int //Should start at -1
 	Connection  *sql.DB
 	Transaction *sql.Tx
+	lastResult  sql.Result
 }
 
 // RowCount returns the amount of scan results.
@@ -99,46 +100,41 @@ func (wrapper *Wrapper) Prepare(statement string) (*sql.Stmt, error) {
 
 // Execute executes the statement with the params, and returns last inserted id, and the rows affected.
 // TODO Remove TryToClose. Return error instead.
-func (wrapper *Wrapper) Execute(statementString string, params ...interface{}) (int64, int64, error) {
+func (wrapper *Wrapper) Execute(statementString string, params ...interface{}) error {
 	statement, err := wrapper.Prepare(statementString)
 	if err != nil {
 		fmt.Printf("Failed to prepare\nError: %v\nStatement: %v\nValues: %v\n", err, statementString, params)
-		return 0, 0, err
+		return err
 	}
 	defer TryToClose(statement)
 
 	results, err := statement.Exec(params...)
 	if err != nil {
 		fmt.Printf("Failed to exec\nError: %v\nStatement: %v\nValues: %v\n", err, statementString, params)
-		return 0, 0, err
+		return err
 	}
 
-	var lID, rwA int64
-	if err = func() error {
-		defer func() {
-			// Its insane that lastInsertedID can panic....
-			if err := recover(); err != nil {
-				return
-			}
-		}()
+	wrapper.lastResult = results
 
-		rwA, err = results.RowsAffected()
-		if err != nil {
-			fmt.Printf("Failed to get rows affected\nError: %v\nStatement: %v\nValues: %v\n", err, statementString, params)
-			return err
-		}
+	return nil
+}
 
-		lID, err = results.LastInsertId()
-		if err != nil {
-			fmt.Printf("Failed to get last inserted id\nError: %v\nStatement: %v\nValues: %v\n", err, statementString, params)
-			return err
-		}
-
-		return nil
-	}(); err != nil {
-		return 0, 0, err
+// GetLastInsertedID will return the last inserted ID from the last executed SQL
+func (wrapper *Wrapper) GetLastInsertedID() (int, error) {
+	if wrapper.lastResult == nil {
+		return 0, fmt.Errorf("Must call insert before you can get the last inserted ID")
 	}
-	return lID, rwA, nil
+	lastInserted, err := wrapper.lastResult.LastInsertId()
+	return int(lastInserted), err
+}
+
+// GetRowsAffected will return the amount of rows affected from the last executed SQL
+func (wrapper *Wrapper) GetRowsAffected() (int, error) {
+	if wrapper.lastResult == nil {
+		return 0, fmt.Errorf("Must call insert before you can get the rows affected")
+	}
+	lastInserted, err := wrapper.lastResult.RowsAffected()
+	return int(lastInserted), err
 }
 
 //Clears the history.
