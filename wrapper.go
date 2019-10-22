@@ -67,7 +67,6 @@ func (wrapper *Wrapper) Begin() (err error) {
 // Commit commits the transaction
 func (wrapper *Wrapper) Commit() error {
 	if err := wrapper.Transaction.Commit(); err != nil {
-		fmt.Printf("Failed to commit transaction: %v\n", err)
 		return err
 	}
 	wrapper.Transaction = nil
@@ -77,7 +76,6 @@ func (wrapper *Wrapper) Commit() error {
 // Revert rolls back the transaction
 func (wrapper *Wrapper) Revert() error {
 	if err := wrapper.Transaction.Rollback(); err != nil {
-		fmt.Printf("Failed to row back failed transacton: %v\n", err)
 		return err
 	}
 	wrapper.Transaction = nil
@@ -103,14 +101,12 @@ func (wrapper *Wrapper) Prepare(statement string) (*sql.Stmt, error) {
 func (wrapper *Wrapper) Execute(statementString string, params ...interface{}) error {
 	statement, err := wrapper.Prepare(statementString)
 	if err != nil {
-		fmt.Printf("Failed to prepare\nError: %v\nStatement: %v\nValues: %v\n", err, statementString, params)
 		return err
 	}
-	defer TryToClose(statement)
+	defer statement.Close()
 
 	results, err := statement.Exec(params...)
 	if err != nil {
-		fmt.Printf("Failed to exec\nError: %v\nStatement: %v\nValues: %v\n", err, statementString, params)
 		return err
 	}
 
@@ -156,22 +152,19 @@ func (wrapper *Wrapper) Query(queryStatement string, params ...interface{}) erro
 	wrapper.clear()
 	statement, err := wrapper.Prepare(queryStatement)
 	if err != nil {
-		fmt.Printf("wrapper.Prepare resulted in an error.\nParams: %v\nError: %v\n", queryStatement, err)
 		return err
 	}
-	defer TryToClose(statement)
+	defer statement.Close()
 
 	results, err := statement.Query(params...)
 	if err != nil {
 		// TODO Debug
-		fmt.Printf("statement.query resulted in an error.\nParams: %v\nError: %v\n", queryStatement, err)
 		return err
 	}
-	defer TryToClose(results)
+	defer statement.Close()
 
 	var fArr []string
 	if fArr, err = results.Columns(); err != nil {
-		fmt.Printf("results.Columns() resulted in an error.\nParams: %v\nError: %v\n", queryStatement, err)
 		return err
 	}
 
@@ -179,7 +172,6 @@ func (wrapper *Wrapper) Query(queryStatement string, params ...interface{}) erro
 		var result ScanResult
 		result.PutFields(fArr)
 		if err = results.Scan(result.GetFieldPtrArr()...); err != nil {
-			fmt.Printf("results.Scan resulted in an error.\nParams: %v\nError: %v\n", queryStatement, err)
 			return err
 		}
 		wrapper.ScanResults = append(wrapper.ScanResults, &result)
@@ -191,23 +183,18 @@ func (wrapper *Wrapper) Query(queryStatement string, params ...interface{}) erro
 //QueryOne queries the query string, with whatever params given, gives back one value as an interface.
 // TODO Remove TryToClose. Return error instead.
 func (wrapper *Wrapper) QueryOne(queryStatement string, params ...interface{}) (i interface{}, err error) {
-	defer func() {
-		if err != nil {
-			fmt.Printf("Failed to query once\nError: %v\nStatement: %v\n", err, queryStatement)
-		}
-	}()
 	wrapper.clear()
 	statement, err := wrapper.Prepare(queryStatement)
 	if err != nil {
 		return
 	}
-	defer TryToClose(statement)
+	defer statement.Close()
 
 	results, err := statement.Query(params...)
 	if err != nil {
 		return
 	}
-	defer TryToClose(results)
+	defer statement.Close()
 
 	var fArr []string
 	if fArr, err = results.Columns(); err != nil || !results.Next() {
@@ -247,19 +234,6 @@ func (wrapper *Wrapper) Current() (*ScanResult, error) {
 		return nil, errors.New("Ran out of Scan results")
 	}
 	return wrapper.ScanResults[wrapper.CurrentScan], nil
-}
-
-// DumpResults ...
-func (wrapper *Wrapper) DumpResults() {
-	for _, results := range wrapper.ScanResults {
-		results.Lock()
-		fmt.Print("Keys: ")
-		for key := range results.MapFieldToID {
-			fmt.Print(key + " ")
-		}
-		fmt.Println()
-		results.Unlock()
-	}
 }
 
 //GetInt ...
@@ -394,7 +368,6 @@ func (wrapper *Wrapper) unmarshal(v reflect.Value) error {
 						func() {
 							defer func() {
 								if err := recover(); err != nil {
-									fmt.Printf("WKB vs WKT issue...... %v\n", err)
 								}
 							}()
 
@@ -426,7 +399,6 @@ func (wrapper *Wrapper) unmarshal(v reflect.Value) error {
 						func() {
 							defer func() {
 								if err := recover(); err != nil {
-									fmt.Printf("WKB vs WKT issue...... %v\n", err)
 								}
 							}()
 
@@ -446,11 +418,8 @@ func (wrapper *Wrapper) unmarshal(v reflect.Value) error {
 						*ptr = geo.NewPathFromWKB(byts)
 					}
 
-				default:
-					fmt.Printf("Unsupported Wrapper Type: %v\tTag: %v\n", field.Type(), tag)
 				}
-			default:
-				fmt.Printf("Unsupported Kind: %v\tTag: %v\n", field.Kind(), tag)
+
 			}
 		}
 	}

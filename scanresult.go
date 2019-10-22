@@ -16,8 +16,6 @@ package godb
 
 import (
 	"fmt"
-	"io"
-	"reflect"
 	"strconv"
 	"sync"
 	"time"
@@ -105,7 +103,6 @@ func (results *ScanResult) GetString(key string) string {
 		case nil:
 			return ""
 		default:
-			fmt.Printf("Failed type assertion for GetString(%v)\nType: %v\n", key, reflect.TypeOf(val))
 			return ""
 		}
 	}
@@ -129,7 +126,6 @@ func (results *ScanResult) CheckString(key string) (string, bool) {
 		case nil:
 			return "", true //Return (nothing, true) because technically it's not there? This means that there technically wasn't an error.
 		default:
-			fmt.Printf("Failed type assertion for CheckString(%v)\nType: %v\n", key, reflect.TypeOf(val))
 			return "", false
 		}
 	}
@@ -155,9 +151,7 @@ func (results *ScanResult) GetInterface(key string) (i interface{}) {
 // TODO Add more type checks.
 func (results *ScanResult) GetBool(key string) bool {
 	if val, ok := results.getVal(key); ok {
-		if val2, ok := val.(int64); !ok {
-			fmt.Printf("GetBool failed Type Assertion! Type is %v\n", reflect.TypeOf(val))
-		} else {
+		if val2, ok := val.(int64); ok {
 			return val2 > 0
 		}
 	}
@@ -168,9 +162,7 @@ func (results *ScanResult) GetBool(key string) bool {
 // TODO Add more type checks.
 func (results *ScanResult) CheckBool(key string) (bool, bool) {
 	if val, ok := results.getVal(key); ok {
-		if val2, ok := val.(int64); !ok {
-			fmt.Printf("CheckBool failed Type Assertion! Type is %v\n", reflect.TypeOf(val))
-		} else {
+		if val2, ok := val.(int64); ok {
 			return val2 > 0, true
 		}
 
@@ -189,10 +181,7 @@ func (results *ScanResult) GetInt(key string) int {
 				b[i] = byte(v)
 			}
 
-			num, err := strconv.Atoi(string(b))
-			if err != nil {
-				fmt.Printf("Error on GetInt(%v): %v\n", key, err)
-			}
+			num, _ := strconv.Atoi(string(b))
 			return num
 		case string:
 			i, _ := strconv.Atoi(string(val2))
@@ -201,9 +190,6 @@ func (results *ScanResult) GetInt(key string) int {
 			return int(val2)
 		case nil:
 			return 0
-		default:
-			fmt.Printf("GetInt(%v) returned an unknown type: %v\n", key, reflect.TypeOf(val))
-
 		}
 	}
 	return 0
@@ -213,20 +199,11 @@ func (results *ScanResult) GetInt(key string) int {
 // TODO Add more type checks.
 func (results *ScanResult) CheckInt(key string) (int, bool) {
 	if val, ok := results.getVal(key); ok {
-		if val2, ok := val.(int64); !ok {
-			fmt.Printf("CheckInt failed Type Assertion! Type is %v\n", reflect.TypeOf(val))
-		} else {
+		if val2, ok := val.(int64); ok {
 			return int(val2), true
 		}
 	}
 	return 0, false
-}
-
-//TryToClose tries to close a closable object.
-func TryToClose(obj io.Closer) {
-	if err := obj.Close(); err != nil {
-		fmt.Printf("Memory leak created by failure to close an object! %v\n", err) //TODO Fix import path so that it can be logged.
-	}
 }
 
 var supportedTimes = []string{
@@ -250,6 +227,5 @@ func stringToTimePtr(t string) *time.Time {
 			return &tim
 		}
 	}
-	fmt.Printf("Unsupported time string: `%v`\n", t)
 	return nil
 }
